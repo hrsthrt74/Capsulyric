@@ -99,6 +99,18 @@ public class LyricService extends Service {
             stopForeground(true);
             stopSelf();
             return START_NOT_STICKY;
+        } else if (intent != null && "FORCE_UPDATE_UI".equals(intent.getAction())) {
+            if (BuildConfig.DEBUG) {
+                String title = intent.getStringExtra("title");
+                String artist = intent.getStringExtra("artist");
+                String lyric = intent.getStringExtra("lyric");
+                // updateNotification(lyric, title/app, artist/subtext)
+                // Mapping: Debug Title -> AppName, Artist -> SubText, Lyric -> Main Content
+                updateNotification(lyric != null ? lyric : "Debug Lyric", 
+                                   title != null ? title : "Debug Source", 
+                                   artist != null ? artist : "");
+            }
+            return START_STICKY;
         }
         createNotificationChannel();
         // Start with empty/default notification
