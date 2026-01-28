@@ -18,7 +18,7 @@ import java.util.Set;
 public class MediaMonitorService extends NotificationListenerService {
     private static final String TAG = "MediaMonitorService";
     private static final String PREFS_NAME = "IslandLyricsPrefs";
-    private static final String PREF_WHITELIST = "whitelist_packages";
+    private static final String PREF_WHITELIST = "whitelist_json";
     
     private MediaSessionManager mMediaSessionManager;
     private ComponentName mComponentName;
@@ -87,18 +87,11 @@ public class MediaMonitorService extends NotificationListenerService {
     }
 
     private void loadWhitelist() {
-        Set<String> set = mPrefs.getStringSet(PREF_WHITELIST, null);
+        // Use Helper to get only Enabled packages
+        Set<String> set = WhitelistHelper.getEnabledPackages(this);
         mAllowedPackages.clear();
-        if (set != null) {
-            mAllowedPackages.addAll(set);
-        } else {
-             // Fallback default
-             mAllowedPackages.add("com.netease.cloudmusic");
-             mAllowedPackages.add("com.tencent.qqmusic");
-             mAllowedPackages.add("com.spotify.music");
-             mAllowedPackages.add("com.miui.player"); // Added default
-        }
-        AppLogger.getInstance().log(TAG, "Whitelist updated: " + mAllowedPackages.size() + " apps.");
+        mAllowedPackages.addAll(set);
+        AppLogger.getInstance().log(TAG, "Whitelist updated: " + mAllowedPackages.size() + " enabled apps.");
     }
 
     private final java.util.List<android.media.session.MediaController> mActiveControllers = new java.util.ArrayList<>();

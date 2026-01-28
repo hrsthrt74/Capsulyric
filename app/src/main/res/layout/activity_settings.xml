@@ -61,6 +61,18 @@
                 android:layout_height="wrap_content"/>
         </LinearLayout>
 
+        <!-- Section: Permissions -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/perm_cat_title"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"/>
+
         <!-- Item: Notification Access -->
         <LinearLayout
             android:id="@+id/item_notification_perm"
@@ -80,19 +92,57 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Notification Access"
+                    android:text="@string/perm_read_notif"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Required to read lyrics"
+                    android:text="@string/perm_read_notif_desc"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"/>
             </LinearLayout>
                 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_notification"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"/>
+        </LinearLayout>
+
+        <!-- Item: Post Notification Permission -->
+        <LinearLayout
+            android:id="@+id/item_post_notification_perm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp"
+            android:background="?attr/selectableItemBackground">
+            
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/perm_post_notif"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/perm_post_notif_desc"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+                
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_post_notification"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clickable="false"
@@ -277,7 +327,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="General"
+            android:text="@string/settings_general_header"
             android:textColor="?attr/colorPrimary"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -304,7 +354,7 @@
                  <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Manage Whitelist"
+                    android:text="@string/settings_general_whitelist"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"/>
             </LinearLayout>
@@ -346,6 +396,7 @@
                 android:src="@drawable/ic_music_note"
                 app:tint="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
+
         
         <View
             android:layout_width="match_parent"
@@ -353,6 +404,49 @@
             android:background="?attr/colorOutlineVariant"
             android:layout_marginHorizontal="24dp"
             android:layout_marginVertical="8dp"/>
+
+        <!-- Section: Help & Guide -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Help"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Item: 0-Hook Guide -->
+        <LinearLayout
+            android:id="@+id/item_guide_0_hook"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp"
+            android:background="?attr/selectableItemBackground">
+            
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_guide_item"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"/>
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_help"
+                app:tint="?attr/colorOnSurfaceVariant"/>
+        </LinearLayout>
 
         <!-- Section: About -->
         <TextView
@@ -395,6 +489,7 @@
             android:gravity="center_vertical"
             android:paddingHorizontal="24dp"
             android:paddingVertical="16dp"
+            android:visibility="gone"
             android:background="?attr/selectableItemBackground">
             
             <TextView

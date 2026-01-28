@@ -16,17 +16,9 @@
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurface"/>
 
-    <ImageView
-        android:id="@+id/btn_delete"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:contentDescription="Delete"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="?attr/actionBarItemBackground"
-        android:padding="4dp"
-        app:tint="?attr/colorError"
-        xmlns:app="http://schemas.android.com/apk/res-auto"/>
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/switch_whitelist_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
 
 </LinearLayout>

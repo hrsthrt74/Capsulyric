@@ -28,6 +28,12 @@ public class SettingsActivity extends BaseActivity {
     private View itemNotificationPerm;
     private MaterialSwitch switchNotification;
     
+    private View itemPostNotificationPerm;
+    private MaterialSwitch switchPostNotification;
+    
+    // Help & Guide UI
+    private View itemGuide0Hook;
+    
     private View itemWhitelist;
     private View itemBattery;
     private View itemGithub;
@@ -44,6 +50,10 @@ public class SettingsActivity extends BaseActivity {
     private MaterialSwitch switchPureBlack;
     private View itemDynamicColor;
     private MaterialSwitch switchDynamicColor;
+    
+    // Developer Mode State
+    private int devClickCount = 0;
+    private long lastDevClickTime = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +73,11 @@ public class SettingsActivity extends BaseActivity {
         
         itemNotificationPerm = findViewById(R.id.item_notification_perm);
         switchNotification = findViewById(R.id.switch_notification);
+        
+        itemPostNotificationPerm = findViewById(R.id.item_post_notification_perm);
+        switchPostNotification = findViewById(R.id.switch_post_notification);
+        
+        itemGuide0Hook = findViewById(R.id.item_guide_0_hook);
         
         // Bind Appearance Views
         itemLanguage = findViewById(R.id.item_language);
@@ -96,7 +111,13 @@ public class SettingsActivity extends BaseActivity {
         switchMaster.setChecked(isEnabled);
 
         initAppearanceUI();        
+        initDeveloperMode();
         setupClickListeners();
+    }
+
+    private void initDeveloperMode() {
+        boolean isDevMode = getSharedPreferences("IslandLyricsPrefs", MODE_PRIVATE).getBoolean("dev_mode_enabled", false);
+        itemLogs.setVisibility((BuildConfig.DEBUG || isDevMode) ? View.VISIBLE : View.GONE);
     }
 
     private void initAppearanceUI() {
@@ -147,11 +168,31 @@ public class SettingsActivity extends BaseActivity {
         itemNotificationPerm.setOnClickListener(v -> {
             boolean hasPermission = NotificationManagerCompat.getEnabledListenerPackages(this).contains(getPackageName());
             if (hasPermission) {
+                // If already granted, open settings to allow user to revoke
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
             } else {
                 showPrivacyDisclaimer();
             }
         });
+
+        // --- Post Notification Permission (Android 13+) ---
+        itemPostNotificationPerm.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= 33) {
+                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                     // Open App Settings to revoke if they want
+                     Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                     intent.setData(Uri.fromParts("package", getPackageName(), null));
+                     startActivity(intent);
+                 } else {
+                     ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+                 }
+            } else {
+                 android.widget.Toast.makeText(this, "Not required for this Android version", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // --- Guide ---
+        itemGuide0Hook.setOnClickListener(v -> show0HookGuide());
 
         // --- Appearance Logic ---
         
@@ -208,6 +249,26 @@ public class SettingsActivity extends BaseActivity {
         });
         
         itemLogs.setOnClickListener(v -> showLogConsole());
+        
+        // Developer Mode Trigger (Secret)
+        TextView tvFooter = findViewById(R.id.tv_footer_version);
+        tvFooter.setOnClickListener(v -> {
+             long currentTime = System.currentTimeMillis();
+             if (currentTime - lastDevClickTime > 1000) {
+                 devClickCount = 0;
+             }
+             devClickCount++;
+             lastDevClickTime = currentTime;
+             
+             if (devClickCount >= 3 && devClickCount < 7) {
+                 android.widget.Toast.makeText(this, (7 - devClickCount) + " steps away from developer mode...", android.widget.Toast.LENGTH_SHORT).show();
+             } else if (devClickCount == 7) {
+                 // Enable Dev Mode
+                 getSharedPreferences("IslandLyricsPrefs", MODE_PRIVATE).edit().putBoolean("dev_mode_enabled", true).apply();
+                 itemLogs.setVisibility(View.VISIBLE);
+                 android.widget.Toast.makeText(this, "Developer Mode Enabled! 👩‍💻", android.widget.Toast.LENGTH_SHORT).show();
+             }
+        });
     }
 
     private void showLanguageDialog() {
@@ -228,30 +289,34 @@ public class SettingsActivity extends BaseActivity {
         boolean listenerGranted = NotificationManagerCompat.getEnabledListenerPackages(this).contains(getPackageName());
         switchNotification.setChecked(listenerGranted);
         
-        // Check POST_NOTIFICATIONS (Android 13+) implicitly
+        // Check POST_NOTIFICATIONS (Android 13+) - Independent check
         if (Build.VERSION.SDK_INT >= 33) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                if (listenerGranted) {
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
-                }
-            }
+            boolean postGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            switchPostNotification.setChecked(postGranted);
+        } else {
+            switchPostNotification.setChecked(true); // Always true on older Androids
+            switchPostNotification.setEnabled(false);
+            itemPostNotificationPerm.setAlpha(0.5f);
         }
+    }
+
+    private void show0HookGuide() {
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.guide_title)
+            .setMessage(android.text.Html.fromHtml(getString(R.string.guide_message), android.text.Html.FROM_HTML_MODE_COMPACT))
+            .setPositiveButton(android.R.string.ok, null)
+            .show();
     }
 
     private void showPrivacyDisclaimer() {
         new AlertDialog.Builder(this)
-            .setTitle("Security & Privacy Warning")
-            .setMessage("To function, Capsulyric needs to read your notifications.\n\n" +
-                        "We Promise:\n" +
-                        "1. No Internet Access: This app does not connect to the net.\n" +
-                        "2. No Data Collection: No personal data is stored or transmitted.\n" +
-                        "3. Local Only: All processing happens on your device.\n\n" +
-                        "Note: We are not responsible for the behavior of other apps.")
-            .setPositiveButton("I Understand & Grant", (dialog, which) -> {
+            .setTitle(R.string.dialog_privacy_title)
+            .setMessage(getString(R.string.dialog_privacy_message))
+            .setPositiveButton(R.string.dialog_btn_understand, (dialog, which) -> {
                 Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
                 startActivity(intent);
             })
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.dialog_btn_cancel, null)
             .show();
     }
     
