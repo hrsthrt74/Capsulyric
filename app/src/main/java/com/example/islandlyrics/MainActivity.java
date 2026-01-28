@@ -79,11 +79,7 @@ public class MainActivity extends BaseActivity {
         updateVersionInfo();
     }
     
-    @Override
-    protected void onResume() {
-        super.onResume();
-        updateStatusCardState();
-    }
+    // onResume is overridden below for Progress Logic
     
     private void initializeDefaultWhitelist() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -103,6 +99,10 @@ public class MainActivity extends BaseActivity {
         mTvSong = findViewById(R.id.tv_song);
         mTvArtist = findViewById(R.id.tv_artist);
         mTvLyric = findViewById(R.id.tv_lyric);
+        
+        mPbDebug = findViewById(R.id.pb_debug_progress);
+        mTvDebugTime = findViewById(R.id.tv_debug_time);
+        mTvDebugInfo = findViewById(R.id.tv_debug_song_info);
     }
 
     private void setupClickListeners() {
@@ -184,6 +184,101 @@ public class MainActivity extends BaseActivity {
         }
     }
 
+    // Debug Progress UI
+    private android.widget.ProgressBar mPbDebug;
+    private TextView mTvDebugTime;
+    private TextView mTvDebugInfo;
+    private final android.os.Handler mHandler = new android.os.Handler();
+    private final Runnable mProgressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateDebugProgress();
+            mHandler.postDelayed(this, 1000);
+        }
+    };
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateStatusCardState();
+        mHandler.post(mProgressRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mHandler.removeCallbacks(mProgressRunnable);
+    }
+
+    private void updateDebugProgress() {
+        if (!isNotificationListenerEnabled()) {
+             mTvDebugInfo.setText("Permission Missing");
+             return;
+        }
+
+        try {
+            android.media.session.MediaSessionManager mm = (android.media.session.MediaSessionManager) getSystemService(MEDIA_SESSION_SERVICE);
+            android.content.ComponentName component = new android.content.ComponentName(this, MediaMonitorService.class); // Use ANY component that has permission really
+            // Note: getActiveSessions needs the ComponentName of the notification listener usually
+            List<android.media.session.MediaController> controllers = mm.getActiveSessions(component);
+            
+            android.media.session.MediaController activeController = null;
+            for (android.media.session.MediaController c : controllers) {
+                if (c.getPlaybackState() != null && c.getPlaybackState().getState() == android.media.session.PlaybackState.STATE_PLAYING) {
+                    activeController = c;
+                    break;
+                }
+            }
+
+            if (activeController != null) {
+                android.media.session.PlaybackState state = activeController.getPlaybackState();
+                android.media.MediaMetadata meta = activeController.getMetadata();
+                
+                long duration = 0;
+                if (meta != null) {
+                    duration = meta.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION);
+                }
+
+                if (state != null) {
+                    long lastPosition = state.getPosition();
+                    long lastUpdateTime = state.getLastPositionUpdateTime();
+                    float speed = state.getPlaybackSpeed();
+                    
+                    long currentPos = lastPosition + (long) ((android.os.SystemClock.elapsedRealtime() - lastUpdateTime) * speed);
+                    
+                    // Clamp
+                    if (duration > 0 && currentPos > duration) currentPos = duration;
+                    if (currentPos < 0) currentPos = 0; // Seek edge case
+
+                    // Update UI
+                    mTvDebugInfo.setText("Playing: " + activeController.getPackageName());
+                    if (duration > 0) {
+                        int progress = (int) (1000 * currentPos / duration);
+                        mPbDebug.setProgress(progress);
+                        mTvDebugTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
+                    } else {
+                        mPbDebug.setProgress(0);
+                        mTvDebugTime.setText(formatTime(currentPos) + " / --:--");
+                    }
+                }
+            } else {
+                mTvDebugInfo.setText("No Active Media");
+            }
+
+        } catch (SecurityException e) {
+            mTvDebugInfo.setText("Security Exception (Check Permission)");
+        } catch (Exception e) {
+            mTvDebugInfo.setText("Error: " + e.getMessage());
+        }
+    }
+
+    private String formatTime(long ms) {
+        long seconds = ms / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+    
     private void setupObservers() {
         LyricRepository repo = LyricRepository.getInstance();
 
@@ -209,4 +304,5 @@ public class MainActivity extends BaseActivity {
              mTvArtist.setText(mediaInfo.artist != null ? mediaInfo.artist : "-");
         });
     }
+
 }

@@ -19,11 +19,13 @@ public class LyricRepository {
         public final String title;
         public final String artist;
         public final String packageName;
+        public final long duration;
         
-        public MediaInfo(String title, String artist, String packageName) {
+        public MediaInfo(String title, String artist, String packageName, long duration) {
             this.title = title;
             this.artist = artist;
             this.packageName = packageName;
+            this.duration = duration;
         }
     }
     
@@ -81,9 +83,9 @@ public class LyricRepository {
         updatePlaybackStatus(true);
     }
 
-    public void updateMediaMetadata(String title, String artist, String packageName) {
+    public void updateMediaMetadata(String title, String artist, String packageName, long duration) {
         AppLogger.getInstance().log("Repo", "Posting metadata for: " + packageName);
         // Atomic update
-        liveMetadata.postValue(new MediaInfo(title, artist, packageName));
+        liveMetadata.postValue(new MediaInfo(title, artist, packageName, duration));
     }
 }

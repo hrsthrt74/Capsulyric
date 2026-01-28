@@ -237,5 +237,40 @@
                 android:paddingEnd="24dp"/>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Debug Progress UI -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="24dp"
+            android:padding="16dp"
+            android:background="?attr/colorSurfaceVariant">
+
+            <TextView
+                android:id="@+id/tv_debug_song_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Waiting for music..."
+                android:textColor="?attr/colorOnSurface"/>
+
+            <ProgressBar
+                android:id="@+id/pb_debug_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="1000"
+                android:progress="0"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                android:id="@+id/tv_debug_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00 / 00:00"
+                android:layout_gravity="end"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

@@ -87,7 +87,33 @@ public class LyricService extends Service {
         SuperLyricTool.registerSuperLyric(this, mSuperLyricStub);
         
         // Observe Repository
-        LyricRepository.getInstance().getLiveLyric().observeForever(mLyricObserver);
+        LyricRepository repo = LyricRepository.getInstance();
+        repo.getLiveLyric().observeForever(mLyricObserver);
+        
+        repo.getIsPlaying().observeForever(isPlaying -> {
+             if (Boolean.TRUE.equals(isPlaying)) {
+                 // Resume or Start (Usually Repository doesn't have position yet, 
+                 // we rely on Metadata update or sync)
+                 if (!mIsPlaying) {
+                     // Default start? Or wait for metadata?
+                     // Let's just set flag.
+                     mIsPlaying = true;
+                     startProgressUpdater(mCurrentPosition, mDuration > 0 ? mDuration : 180000); // Default 3m if unknown
+                 }
+             } else {
+                 stopProgressUpdater();
+             }
+        });
+        
+        repo.getLiveMetadata().observeForever(info -> {
+            if (info != null) {
+                // In a real app we'd get duration here. 
+                // For this prototype, let's assume valid duration if > 0
+                if (info.duration > 0) {
+                    mDuration = info.duration;
+                }
+            }
+        });
     }
 
     @Override
@@ -216,12 +242,25 @@ public class LyricService extends Service {
              }
              
              try {
-                  // setShortCriticalText might be the key for chip text
-                  // Actually documentation says: setShortCriticalText
                  java.lang.reflect.Method methodChip = builder.getClass().getMethod("setShortCriticalText", CharSequence.class);
                  methodChip.invoke(builder, title); // Use lyric for chip
              } catch (Exception e) {
                  Log.e(TAG, "setShortCriticalText failed: " + e.getMessage());
+             }
+
+             // Task: Progress Style Integration
+             if (mDuration > 0) {
+                 // Try to use the new ProgressStyle logic
+                 // Since we are targeting API 36, we can try to use it directly or via reflection if safe
+                 // The helper method guarantees API check.
+                 if (android.os.Build.VERSION.SDK_INT >= 36) {
+                     android.app.Notification.Style pStyle = getLyricProgressStyle((int) mCurrentPosition, (int) mDuration);
+                     if (pStyle != null) {
+                         builder.setStyle(pStyle);
+                     }
+                 }
+                 // Set Category to prevent throttling
+                 builder.setCategory(android.app.Notification.CATEGORY_PROGRESS);
              }
              
              return builder.build();
@@ -253,6 +292,75 @@ public class LyricService extends Service {
         if (nm != null) {
             nm.notify(NOTIFICATION_ID, notification);
         }
+    }
+
+    // Progress Logic
+    private long mCurrentPosition = 0;
+    private long mDuration = 0;
+    private long mLastUpdateTime = 0;
+    private boolean mIsPlaying = false;
+    private final android.os.Handler mHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable mUpdateTask = new Runnable() {
+        @Override
+        public void run() {
+            if (mIsPlaying && mDuration > 0) {
+                // Dead Reckoning: Simple increment for now, assuming 1x speed
+                // In a real implementation, we'd sync with PlaybackState's last position + time delta
+                long now = System.currentTimeMillis();
+                long delta = now - mLastUpdateTime;
+                mCurrentPosition += delta;
+                mLastUpdateTime = now;
+
+                if (mCurrentPosition > mDuration) mCurrentPosition = mDuration;
+                
+                // Refresh Notification with new progress (keeping text same)
+                // Note: We need the last text. For now, pull from Repo or cache?
+                // Using cached simple approach for this prototype task.
+                LyricRepository.LyricInfo info = LyricRepository.getInstance().getLiveLyric().getValue();
+                String lyric = (info != null) ? info.lyric : mLastLyric;
+                String pkg = (info != null) ? info.sourceApp : "Island Lyrics";
+                
+                // Trigger update
+                updateNotification(lyric, pkg, ""); 
+                
+                mHandler.postDelayed(this, 1000);
+            }
+        }
+    };
+
+    private void startProgressUpdater(long position, long duration) {
+        mCurrentPosition = position;
+        mDuration = duration;
+        mLastUpdateTime = System.currentTimeMillis();
+        mIsPlaying = true;
+        mHandler.removeCallbacks(mUpdateTask);
+        mHandler.post(mUpdateTask);
+    }
+    
+    private void stopProgressUpdater() {
+        mIsPlaying = false;
+        mHandler.removeCallbacks(mUpdateTask);
+    }
+
+    private android.app.Notification.Style getLyricProgressStyle(int currentMs, int totalMs) {
+        if (android.os.Build.VERSION.SDK_INT >= 36) { // API 36+
+            android.app.Notification.ProgressStyle style = new android.app.Notification.ProgressStyle();
+            
+            // Segment Setup: Single segment for song (Raw MS)
+            android.app.Notification.ProgressStyle.Segment songSegment = 
+                new android.app.Notification.ProgressStyle.Segment(totalMs);
+            style.addProgressSegment(songSegment);
+            
+            // Progress Setup (Raw MS)
+            style.setProgress(currentMs);
+            style.setStyledByProgress(true); // Filled vs Unfilled
+            
+            // Optional: Tracker Icon
+            // style.setProgressTrackerIcon(android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_music_note));
+
+            return style;
+        }
+        return null;
     }
     
     private String getAppName(String packageName) {

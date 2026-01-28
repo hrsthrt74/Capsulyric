@@ -280,7 +280,9 @@ public class MediaMonitorService extends NotificationListenerService {
         if (finalLyric != null) {
             LyricRepository.getInstance().updateLyric(finalLyric, getAppName(pkg));
         }
-        LyricRepository.getInstance().updateMediaMetadata(finalTitle, finalArtist, pkg);
+        
+        long duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
+        LyricRepository.getInstance().updateMediaMetadata(finalTitle, finalArtist, pkg, duration);
     }
     
     private String getAppName(String packageName) {
