@@ -97,8 +97,9 @@ public class LyricService extends Service {
                  if (!mIsPlaying) {
                      // Default start? Or wait for metadata?
                      // Let's just set flag.
+                     // Let's just set flag.
                      mIsPlaying = true;
-                     startProgressUpdater(mCurrentPosition, mDuration > 0 ? mDuration : 180000); // Default 3m if unknown
+                     startProgressUpdater();
                  }
              } else {
                  stopProgressUpdater();
@@ -295,43 +296,82 @@ public class LyricService extends Service {
     }
 
     // Progress Logic
+    // Progress Logic
     private long mCurrentPosition = 0;
     private long mDuration = 0;
-    private long mLastUpdateTime = 0;
     private boolean mIsPlaying = false;
     private final android.os.Handler mHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable mUpdateTask = new Runnable() {
         @Override
         public void run() {
-            if (mIsPlaying && mDuration > 0) {
-                // Dead Reckoning: Simple increment for now, assuming 1x speed
-                // In a real implementation, we'd sync with PlaybackState's last position + time delta
-                long now = System.currentTimeMillis();
-                long delta = now - mLastUpdateTime;
-                mCurrentPosition += delta;
-                mLastUpdateTime = now;
-
-                if (mCurrentPosition > mDuration) mCurrentPosition = mDuration;
-                
-                // Refresh Notification with new progress (keeping text same)
-                // Note: We need the last text. For now, pull from Repo or cache?
-                // Using cached simple approach for this prototype task.
-                LyricRepository.LyricInfo info = LyricRepository.getInstance().getLiveLyric().getValue();
-                String lyric = (info != null) ? info.lyric : mLastLyric;
-                String pkg = (info != null) ? info.sourceApp : "Island Lyrics";
-                
-                // Trigger update
-                updateNotification(lyric, pkg, ""); 
-                
+            if (mIsPlaying) {
+                updateProgressFromController();
                 mHandler.postDelayed(this, 1000);
             }
         }
     };
 
-    private void startProgressUpdater(long position, long duration) {
-        mCurrentPosition = position;
-        mDuration = duration;
-        mLastUpdateTime = System.currentTimeMillis();
+    private void updateProgressFromController() {
+        try {
+            android.media.session.MediaSessionManager mm = (android.media.session.MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
+            android.content.ComponentName component = new android.content.ComponentName(this, MediaMonitorService.class);
+            // Permission check is implicit via MediaMonitorService being an NLService and us sharing process/uid? 
+            // Actually LyricService is same app.
+            java.util.List<android.media.session.MediaController> controllers = mm.getActiveSessions(component);
+
+            android.media.session.MediaController activeController = null;
+            // Find playing one
+            for (android.media.session.MediaController c : controllers) {
+                 if (c.getPlaybackState() != null && c.getPlaybackState().getState() == android.media.session.PlaybackState.STATE_PLAYING) {
+                     activeController = c;
+                     break;
+                 }
+            }
+            
+            // If none playing, maybe use the first one if we are "paused" but want to show state?
+            // But this loop runs only if mIsPlaying=true (start signaled).
+            
+            if (activeController != null) {
+                android.media.session.PlaybackState state = activeController.getPlaybackState();
+                android.media.MediaMetadata meta = activeController.getMetadata();
+
+                long duration = 0;
+                if (meta != null) {
+                    duration = meta.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION);
+                }
+                
+                // Update internal duration if valid
+                if (duration > 0) mDuration = duration;
+
+                if (state != null) {
+                    long lastPosition = state.getPosition();
+                    long lastUpdateTime = state.getLastPositionUpdateTime();
+                    float speed = state.getPlaybackSpeed();
+                    
+                    // Dead Reckoning Formula
+                    long currentPos = lastPosition + (long) ((android.os.SystemClock.elapsedRealtime() - lastUpdateTime) * speed);
+
+                    // Clamp
+                    if (mDuration > 0 && currentPos > mDuration) currentPos = mDuration;
+                    if (currentPos < 0) currentPos = 0;
+
+                    mCurrentPosition = currentPos;
+                    
+                    // Refresh Notification
+                    LyricRepository.LyricInfo info = LyricRepository.getInstance().getLiveLyric().getValue();
+                    String lyric = (info != null) ? info.lyric : mLastLyric;
+                    String pkg = (info != null) ? info.sourceApp : "Island Lyrics";
+                    
+                    updateNotification(lyric, pkg, "");
+                }
+            }
+        } catch (Exception e) {
+            // Permission might be missing or other error
+            Log.e(TAG, "Progress Update Error: " + e.getMessage());
+        }
+    }
+
+    private void startProgressUpdater() {
         mIsPlaying = true;
         mHandler.removeCallbacks(mUpdateTask);
         mHandler.post(mUpdateTask);
