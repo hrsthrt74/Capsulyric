@@ -28,21 +28,9 @@ import java.util.Set;
 
 public class WhitelistActivity extends BaseActivity {
 
-    private static final String PREFS_NAME = "IslandLyricsPrefs";
-    private static final String PREF_WHITELIST = "whitelist_packages";
-    
-    // Default packages if list is empty
-    private static final Set<String> DEFAULTS = new HashSet<>();
-    static {
-        DEFAULTS.add("com.tencent.qqmusic");
-        DEFAULTS.add("com.miui.player");
-        DEFAULTS.add("com.netease.cloudmusic");
-    }
-
-    private RecyclerView recyclerView;
     private WhitelistAdapter adapter;
-    private List<String> packageList;
-    private SharedPreferences prefs;
+    private RecyclerView recyclerView;
+    private List<WhitelistItem> packageList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +47,6 @@ public class WhitelistActivity extends BaseActivity {
             });
         }
 
-        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        
         // Load Data
         loadData();
 
@@ -75,42 +61,41 @@ public class WhitelistActivity extends BaseActivity {
     }
 
     private void loadData() {
-        Set<String> set = prefs.getStringSet(PREF_WHITELIST, null);
-        if (set == null) {
-            // First run, populate defaults
-            set = new HashSet<>(DEFAULTS);
-            prefs.edit().putStringSet(PREF_WHITELIST, set).apply();
-        }
-        packageList = new ArrayList<>(set);
-        Collections.sort(packageList);
+        packageList = WhitelistHelper.loadWhitelist(this);
     }
 
     private void saveData() {
-        Set<String> set = new HashSet<>(packageList);
-        prefs.edit().putStringSet(PREF_WHITELIST, set).apply();
+        WhitelistHelper.saveWhitelist(this, packageList);
     }
 
     private void showAddDialog() {
         final EditText input = new EditText(this);
-        input.setHint("e.g. com.spotify.music");
+        input.setHint(R.string.dialog_enter_pkg);
         
-        // Add some padding to the edit text container
         android.widget.FrameLayout container = new android.widget.FrameLayout(this);
         android.widget.FrameLayout.LayoutParams params = new  android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.leftMargin = 48; // px (approx)
+        params.leftMargin = 48;
         params.rightMargin = 48;
         input.setLayoutParams(params);
         container.addView(input);
 
         new AlertDialog.Builder(this)
-            .setTitle("Add Package")
+            .setTitle(R.string.dialog_add_whitelist)
             .setView(container)
-            .setPositiveButton("Add", (dialog, which) -> {
+            .setPositiveButton(R.string.dialog_btn_add, (dialog, which) -> {
                 String pkg = input.getText().toString().trim();
                 if (!pkg.isEmpty()) {
-                    if (!packageList.contains(pkg)) {
-                        packageList.add(pkg);
+                    boolean exists = false;
+                    for (WhitelistItem item : packageList) {
+                        if (item.getPackageName().equals(pkg)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!exists) {
+                        packageList.add(new WhitelistItem(pkg, true));
                         Collections.sort(packageList);
                         saveData();
                         adapter.notifyDataSetChanged();
@@ -120,7 +105,7 @@ public class WhitelistActivity extends BaseActivity {
                     }
                 }
             })
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.dialog_btn_cancel, null)
             .show();
     }
 
@@ -137,17 +122,35 @@ public class WhitelistActivity extends BaseActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            String pkg = packageList.get(position);
-            holder.tvPackage.setText(pkg);
-            holder.btnDelete.setOnClickListener(v -> {
-                // Delete logic
+            WhitelistItem item = packageList.get(position);
+            holder.tvPackage.setText(item.getPackageName());
+            
+            // Unbind listener before setting state to avoid infinite triggers (rare but possible)
+            holder.switchToggle.setOnCheckedChangeListener(null);
+            holder.switchToggle.setChecked(item.isEnabled());
+            
+            holder.switchToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                item.setEnabled(isChecked);
+                saveData();
+            });
+
+            // Long Press to Delete
+            holder.itemView.setOnLongClickListener(v -> {
                 int actualPos = holder.getAdapterPosition();
                 if (actualPos != RecyclerView.NO_POSITION) {
-                    packageList.remove(actualPos);
-                    saveData();
-                    notifyItemRemoved(actualPos);
-                    AppLogger.getInstance().log("Whitelist", "Removed: " + pkg);
+                     new AlertDialog.Builder(WhitelistActivity.this)
+                        .setTitle(R.string.dialog_whitelist_title) // Reusing title
+                        .setMessage(getString(R.string.dialog_delete_confirm, item.getPackageName()))
+                        .setPositiveButton(android.R.string.ok, (d, w) -> {
+                            packageList.remove(actualPos);
+                            saveData();
+                            notifyItemRemoved(actualPos);
+                            AppLogger.getInstance().log("Whitelist", "Removed: " + item.getPackageName());
+                        })
+                        .setNegativeButton(R.string.dialog_btn_cancel, null)
+                        .show();
                 }
+                return true;
             });
         }
 
@@ -158,12 +161,12 @@ public class WhitelistActivity extends BaseActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvPackage;
-            ImageView btnDelete;
+            com.google.android.material.materialswitch.MaterialSwitch switchToggle;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 tvPackage = itemView.findViewById(R.id.tv_package_name);
-                btnDelete = itemView.findViewById(R.id.btn_delete);
+                switchToggle = itemView.findViewById(R.id.switch_whitelist_toggle);
             }
         }
     }

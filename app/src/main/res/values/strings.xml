@@ -28,4 +28,36 @@
     <string name="settings_theme_pure_black_desc">Use true black background in dark mode</string>
     <string name="settings_theme_dynamic_color">Dynamic Colors</string>
     <string name="settings_theme_dynamic_color_desc">Use wallpaper colors (Material You)</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_add_whitelist">Add Whitelist</string>
+    <string name="dialog_enter_pkg">Enter package name</string>
+    <string name="dialog_btn_add">Add</string>
+    <string name="dialog_btn_cancel">Cancel</string>
+    <string name="dialog_delete_confirm">Confirm delete %s ?</string>
+    <string name="dialog_privacy_title">Security &amp; Privacy Warning</string>
+    <string name="dialog_privacy_message">To function, Capsulyric needs to read your notifications.\n\nWe Promise:\n1. No Internet Access: This app does not connect to the net.\n2. No Data Collection: No personal data is stored or transmitted.\n3. Local Only: All processing happens on your device.\n\nNote: We are not responsible for the behavior of other apps.</string>
+    <string name="dialog_btn_understand">I Understand &amp; Grant</string>
+
+    <!-- Guide -->
+    <string name="guide_title">0-Hook Guide</string>
+    <string name="guide_message">This mode uses \'Bluetooth Car Lyric\' protocol.\n\n1. Only supports <b>QQ Music</b> and <b>Xiaomi Music</b>.\n2. Enable \'Car Bluetooth Listener\' in Music App Settings.\n3. Grant \'Notification Access\' to this app.</string>
+    <string name="settings_guide_item">0-Hook Mode Setup</string>
+    
+    <!-- Permissions -->
+    <string name="perm_cat_title">Permissions</string>
+    <string name="perm_read_notif">Notification Access</string>
+    <string name="perm_read_notif_desc">Required to read lyrics</string>
+    <string name="perm_post_notif">Post Notification</string>
+    <string name="perm_post_notif_desc">Required to show status</string>
+    
+    <!-- General -->
+    <string name="settings_general_whitelist">Manage Whitelist</string>
+    <string name="settings_general_battery">Ignore Battery Optimization</string>
+    <string name="settings_about_header">About</string>
+    <string name="settings_about_github">GitHub Repository</string>
+    <string name="settings_console_log">Log Console</string>
+    <string name="settings_general_header">General</string>
+    <string name="settings_service_header">Service</string>
+    <string name="settings_service_enable">Enable Service</string>
 </resources>

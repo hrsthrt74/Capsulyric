@@ -2,16 +2,31 @@ plugins {
     id 'com.android.application'
 }
 
+def getGitCommitHash() {
+    try {
+        return 'git rev-parse --short HEAD'.execute().text.trim()
+    } catch (Exception e) {
+        return "Dev"
+    }
+}
+
+def getGitCommitCount() {
+    try {
+        return 'git rev-list --count HEAD'.execute().text.trim().toInteger()
+    } catch (Exception e) {
+        return 1
+    }
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
 android {
     namespace 'com.example.islandlyrics'
     compileSdk 36
-
-
-    def localProperties = new Properties()
-    def localPropertiesFile = rootProject.file('local.properties')
-    if (localPropertiesFile.exists()) {
-        localProperties.load(new FileInputStream(localPropertiesFile))
-    }
 
     signingConfigs {
         release {
@@ -23,17 +38,19 @@ android {
     }
 
     defaultConfig {
+        def majorVersion = "1.0.0"
+        versionCode 1
+        versionName "${majorVersion}.${getGitCommitHash()}"
         applicationId "com.franco.capsulyric"
         minSdk 35
         targetSdk 36
-        versionCode 1
-        versionName "0.0.1-Alpha"
     }
 
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

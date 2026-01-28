@@ -1,43 +1,57 @@
-# Capsulyric 💊
+# Capsulyric
 
+> Provides status bar lyrics based on Live Update.
+> 提供基于 Live Update 的状态栏歌词。
 
-A lightweight music visualizer utilizing the Android 16 Promoted Ongoing Notification API to display lyrics in the status bar.
+## 📱 Compatibility (兼容性)
 
-## Introduction
-Capsulyric utilizes the native Status Bar Chip API (Android 16+) to display real-time lyrics and music status. It functions as a persistent notification service that monitors media playback and displays text metadata in the status bar area.
+* **Android System**: Android 16+
+* **Vendor OS Requirements**:
+    * HyperOS 3.0.300+
+    * ColorOS 16+
 
-> **Note**: This project is currently in an experimental stage. It has not been fully verified on physical devices and is primarily targeted for Android 16 and HyperOS 3.0.300+ environments.
+## 🛡️ Privacy & Disclaimer (隐私与免责)
 
-## ⚠️ Important Dependency
-**This app requires the [SuperLyric](https://github.com/HChenX/SuperLyric) LSPosed module to function correctly.**
-Capsulyric relies on the broadcast data provided by the SuperLyric module to fetch real-time lyrics. Please ensure your device is rooted and has the SuperLyric module installed and activated in LSPosed before using this app.
+* **0-Hook**: The software itself works without any hooking mechanisms.
+* **Offline**: No internet permission required. No data is transmitted.
+* **Disclaimer**: The developer assumes no liability for any risks caused by the software.
 
-## Features
+软件本身 0 hook，没有联网功能，不会传输任何数据，开发者不对软件可能造成的风险承担责任。
 
-- **Status Bar Integration**: Uses the Android 16 `Promoted Ongoing Notification` (Status Bar Chip) to display lyrics directly in the system bar.
-- **Lightweight**: Focuses purely on text metadata (Title/Artist/Lyrics) without heavy image processing.
-- **Automation**: Automatically detects global playback state to show or hide the notification service.
-- **Management UI**: A simple Material Design 3 dashboard for viewing logs, diagnostics, and managing the app whitelist.
+---
 
-## Prerequisites
+## ⚙️ Working Modes (工作模式)
 
-- **Target OS**: Android 16 (API 36)
-- **Minimum OS**: Android 15 (API 35)
-- **System Requirement**: HyperOS 3.0.300+ or generic Android 16+ builds supporting the new notification chip API.
-- **Root Environment**: LSPosed Framework installed.
+### 1. LSPosed Mode (LSPosed 模式)
+**Requirement**: **SuperLyric** must be installed and activated via LSPosed.
+In this mode, Capsulyric fetches lyrics from any music app supported by SuperLyric.
 
-## Disclaimer
+要求已经安装 **SuperLyric** 并通过 LSPosed 激活，此时软件可以获取到 SuperLyric 支持的音乐软件的歌词。
 
-This software is provided "as is", without warranty of any kind. The developer is not responsible for any damage to your device, data loss, or system instability that may result from installing or using this application, especially considering it requires a Rooted environment and Xposed modules. Use at your own risk.
+### 2. Fully 0-Hook Mode (完全 0-hook 模式)
+**Supported Apps**:
+* QQ Music (`com.tencent.qqmusic`)
+* Xiaomi Music (`com.miui.player`)
 
-## Privacy Policy
+**Setup**:
+1.  Enable **"Car Bluetooth Lyrics"** (车载蓝牙歌词) inside the music app settings.
+2.  Grant **Notification Access** to Capsulyric.
+3.  *Note: Some newer versions of QQ Music may require a Bluetooth headset connection to function.*
 
-**Capsulyric respects your privacy.**
-- We do **not** collect, store, or transmit any personal information.
-- We do **not** track your location or usage habits.
-- The app only reads media metadata (lyrics, song titles) locally on your device to display them in the notification bar. No data leaves your device.
+只支持 QQ 音乐和小米音乐，在开启软件内“车载蓝牙歌词”并且开启通知使用权的情况下，软件可以获取到歌词（部分较新版本的 QQ 音乐需要连接蓝牙耳机）。
 
-## Credits & Acknowledgements
+---
 
-* **[SuperLyricApi](https://github.com/HChenX/SuperLyricApi)**: Special thanks to HChenX for the inspiration and underlying logic references regarding lyric processing.
-* **Google Live Updates Sample**: Implementation references for the Promoted Ongoing Notification API.
+## 🛠️ Build (构建)
+
+Clone the project and run the following command to generate a debug APK:
+clone 本项目后使用以下命令即可打出 debug 包：
+
+```bash
+./gradlew assembleDebug
+```
+
+## 🤝 Credits (致谢)
+
+* [SuperLyric](https://github.com/HChenX/SuperLyric)(GPL-3.0)
+* [SuperLyricAPI](https://github.com/HChenX/SuperLyricApi) (LGPL-2.1 Licensed)
