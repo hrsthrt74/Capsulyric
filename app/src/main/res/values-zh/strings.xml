@@ -76,4 +76,21 @@
     <string name="installer_live_channel_short_text_success">完成</string>
     
     <string name="cancel">取消</string>
+
+    <!-- 通知解析规则 -->
+    <string name="parser_rule_title">通知解析规则</string>
+    <string name="parser_rule_subtitle">配置音乐应用通知的解析方式</string>
+    <string name="parser_add_rule">添加音乐应用</string>
+    <string name="parser_edit">编辑</string>
+    <string name="parser_delete">删除</string>
+    <string name="parser_package_name">包名</string>
+    <string name="parser_car_protocol">使用车载协议</string>
+    <string name="parser_separator">分隔符</string>
+    <string name="parser_field_order">字段顺序</string>
+    <string name="parser_separator_tight">"-" (无空格)</string>
+    <string name="parser_separator_spaced">" - " (带空格)</string>
+    <string name="parser_separator_pipe">" | " (竖线)</string>
+    <string name="parser_separator_custom">自定义</string>
+    <string name="parser_order_artist_title">歌手-歌名</string>
+    <string name="parser_order_title_artist">歌名-歌手</string>
 </resources>

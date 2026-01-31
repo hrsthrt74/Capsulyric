@@ -109,8 +109,8 @@ class SettingsActivity : BaseActivity() {
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
             val version = pInfo.versionName
-            val code = pInfo.versionCode // Deprecated in 28 but necessary/available
-            // Modern LongVersionCode handling if minSdk increased but int is fine for display
+            @Suppress("DEPRECATION")
+            val code = pInfo.versionCode // Still widely used for display
             tvFooter.text = "v$version ($code) - ${if (BuildConfig.DEBUG) "Alpha Debug" else "Release"}"
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
@@ -247,7 +247,13 @@ class SettingsActivity : BaseActivity() {
         }
 
         // --- Other Items ---
+
         itemWhitelist.setOnClickListener { startActivity(Intent(this, WhitelistActivity::class.java)) }
+        
+        // Parser Rule Settings
+        val itemParserRule: View = findViewById(R.id.item_parser_rule)
+        itemParserRule.setOnClickListener { startActivity(Intent(this, ParserRuleActivity::class.java)) }
+
 
         itemBattery.setOnClickListener {
             val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)

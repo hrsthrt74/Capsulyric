@@ -335,7 +335,6 @@ class LyricCapsuleHandler(
         // Calculate display lyric FIRST (with scroll)
         val lyricInfo = LyricRepository.getInstance().liveLyric.value
         val currentLyric = lyricInfo?.lyric ?: ""
-        val sourceApp = lyricInfo?.sourceApp ?: "Island Lyrics"
         
         // Scrolling Marquee Logic with Visual Weight
         var displayLyric: String

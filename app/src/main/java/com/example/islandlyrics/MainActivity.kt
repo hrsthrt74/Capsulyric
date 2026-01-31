@@ -265,7 +265,7 @@ class MainActivity : BaseActivity() {
         val repo = LyricRepository.getInstance()
 
         // Playback Status Observer
-        repo.isPlaying.observe(this) { isPlaying ->
+        repo.isPlaying.observe(this) { _ ->
             updateStatusCardState()
         }
 
@@ -282,8 +282,8 @@ class MainActivity : BaseActivity() {
         repo.liveMetadata.observe(this) { mediaInfo ->
             if (mediaInfo == null) return@observe
             // Ensure defaults if null
-            tvSong.text = mediaInfo.title ?: "-"
-            tvArtist.text = mediaInfo.artist ?: "-"
+            tvSong.text = mediaInfo.title
+            tvArtist.text = mediaInfo.artist
         }
         
         // Progress Observer
