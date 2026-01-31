@@ -187,18 +187,6 @@ class LyricService : Service() {
             // Start the handler
             capsuleHandler?.start()
             return START_STICKY
-        } else if (intent != null && "FORCE_UPDATE_UI" == intent.action) {
-            if (BuildConfig.DEBUG) {
-                val title = intent.getStringExtra("title")
-                val artist = intent.getStringExtra("artist")
-                val lyric = intent.getStringExtra("lyric")
-                updateNotification(
-                    lyric ?: "Debug Lyric",
-                    title ?: "Debug Source",
-                    artist ?: ""
-                )
-            }
-            return START_STICKY
         }
 
         return START_STICKY

@@ -304,7 +304,6 @@ class MainActivity : BaseActivity() {
 
         checkApiStatusForDashboard()
 
-        // Removed legacy progressRunnable post
         // Register Diag Receiver
         val filter = IntentFilter()
         filter.addAction("com.example.islandlyrics.DIAG_UPDATE")

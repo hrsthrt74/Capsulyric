@@ -29,22 +29,17 @@ android {
     namespace 'com.example.islandlyrics'
     compileSdk 36
 
+    // Check if custom keystore is available
+    def keystorePath = localProperties.getProperty('store.file')
+    def hasCustomKeystore = keystorePath != null && file(keystorePath).exists()
+
     signingConfigs {
-        release {
-            // Use custom keystore if available (local development)
-            // Otherwise use debug keystore (CI/CD environment)
-            def keystorePath = localProperties.getProperty('store.file')
-            if (keystorePath != null && file(keystorePath).exists()) {
+        if (hasCustomKeystore) {
+            release {
                 storeFile file(keystorePath)
                 storePassword localProperties.getProperty('store.password')
                 keyAlias localProperties.getProperty('key.alias')
                 keyPassword localProperties.getProperty('key.password')
-            } else {
-                // Fallback to debug signing for CI/CD
-                storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
-                storePassword 'android'
-                keyAlias 'androiddebugkey'
-                keyPassword 'android'
             }
         }
     }
@@ -62,7 +57,8 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // Use custom keystore if available, otherwise use debug signing
+            signingConfig hasCustomKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
