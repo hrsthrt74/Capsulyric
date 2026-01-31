@@ -40,7 +40,7 @@ android {
 
     defaultConfig {
         def majorVersion = "1.0.1"
-        versionCode 1
+        versionCode getGitCommitCount()
         versionName "${majorVersion}.${getGitCommitHash()}"
         applicationId "com.franco.capsulyric"
         minSdk 35

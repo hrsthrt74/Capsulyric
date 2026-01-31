@@ -46,6 +46,16 @@ class LyricCapsuleHandler(
     private val SCROLL_STEP = 3  // Jump 3 chars per step (User req: replace ~4 chars, keep rest)
     private val MAX_DISPLAY_LENGTH = 12  // Increased for English lyrics (was 7)
 
+    // Adaptive scroll speed tracking
+    private var lastLyricChangeTime: Long = 0
+    private var lastLyricLength: Int = 0
+    private val lyricDurations = mutableListOf<Long>()  // Sliding window of recent durations
+    private val MAX_HISTORY = 5  // Keep last 5 lyric changes
+    private var adaptiveDelay: Long = SIMULATION_STEP_DELAY  // Start with default
+    private val MIN_CHAR_DURATION = 50L  // Filter spam (< 50ms per char)
+    private val MIN_SCROLL_DELAY = 500L
+    private val MAX_SCROLL_DELAY = 5000L
+
     private val simulationRunnable = object : Runnable {
         override fun run() {
             if (!isRunning) return
@@ -79,6 +89,13 @@ class LyricCapsuleHandler(
         currentState = 3
         installProgress = 0f
         installStartTime = System.currentTimeMillis()
+        
+        // Reset adaptive scroll history for new song
+        lastLyricChangeTime = 0
+        lastLyricLength = 0
+        lyricDurations.clear()
+        adaptiveDelay = SIMULATION_STEP_DELAY
+        
         mainHandler.post(simulationRunnable)
     }
 
@@ -111,15 +128,83 @@ class LyricCapsuleHandler(
     }
 
     fun updateLyricImmediate(lyric: String, app: String) {
+        // Record timing for adaptive scroll
+        recordLyricChange(lyric)
+        
         // Force immediate update and restart scroll loop
         lastUpdateTime = 0
         updateNotification()
         
-        // Restart runnable loop to ensure continuous scrolling
+        // Restart runnable loop with adaptive delay
         if (isRunning) {
             mainHandler.removeCallbacks(simulationRunnable)
-            mainHandler.postDelayed(simulationRunnable, SIMULATION_STEP_DELAY)
+            mainHandler.postDelayed(simulationRunnable, adaptiveDelay)
         }
+    }
+    
+    private fun recordLyricChange(newLyric: String) {
+        val now = System.currentTimeMillis()
+        
+        // Skip first lyric (no previous timing)
+        if (lastLyricChangeTime == 0L) {
+            lastLyricChangeTime = now
+            lastLyricLength = newLyric.length
+            return
+        }
+        
+        val duration = now - lastLyricChangeTime
+        val avgCharDuration = if (lastLyricLength > 0) duration / lastLyricLength else 0
+        
+        // Filter noise: ignore if too fast (< 50ms per char)
+        if (avgCharDuration < MIN_CHAR_DURATION) {
+            LogManager.getInstance().d(context, TAG, "Ignoring fast update: ${avgCharDuration}ms/char")
+            return
+        }
+        
+        // Filter pauses: ignore if too slow (> 30s total)
+        if (duration > 30000) {
+            LogManager.getInstance().d(context, TAG, "Ignoring long pause: ${duration}ms")
+            lastLyricChangeTime = now
+            lastLyricLength = newLyric.length
+            return
+        }
+        
+        // Add to history (sliding window)
+        lyricDurations.add(duration)
+        if (lyricDurations.size > MAX_HISTORY) {
+            lyricDurations.removeAt(0)
+        }
+        
+        // Update state
+        lastLyricChangeTime = now
+        lastLyricLength = newLyric.length
+        
+        // Recalculate adaptive delay
+        calculateAdaptiveDelay()
+    }
+    
+    private fun calculateAdaptiveDelay() {
+        if (lyricDurations.isEmpty()) {
+            adaptiveDelay = SIMULATION_STEP_DELAY
+            return
+        }
+        
+        // Calculate average duration
+        val avgDuration = lyricDurations.average().toLong()
+        
+        // Estimate average lyric length from history
+        val avgLyricLength = if (lastLyricLength > 0) lastLyricLength else 10
+        
+        // Calculate per-character duration
+        val avgCharDuration = avgDuration / avgLyricLength
+        
+        // Scroll delay = time for SCROLL_STEP chars
+        val calculatedDelay = avgCharDuration * SCROLL_STEP
+        
+        // Clamp to reasonable range
+        adaptiveDelay = calculatedDelay.coerceIn(MIN_SCROLL_DELAY, MAX_SCROLL_DELAY)
+        
+        LogManager.getInstance().d(context, TAG, "Adaptive scroll: ${adaptiveDelay}ms (avg: ${avgDuration}ms, ${avgCharDuration}ms/char)")
     }
 
     private fun updateNotification() {
