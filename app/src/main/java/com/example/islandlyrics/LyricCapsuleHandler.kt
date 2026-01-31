@@ -44,7 +44,7 @@ class LyricCapsuleHandler(
     private var scrollOffset = 0
     private var lastLyricText = ""
     private val SCROLL_STEP = 3  // Jump 3 chars per step (User req: replace ~4 chars, keep rest)
-    private val MAX_DISPLAY_LENGTH = 7  // Fixed display window size
+    private val MAX_DISPLAY_LENGTH = 12  // Increased for English lyrics (was 7)
 
     private val simulationRunnable = object : Runnable {
         override fun run() {
@@ -110,9 +110,22 @@ class LyricCapsuleHandler(
         // Notification updates happen in simulationRunnable line 50
     }
 
+    fun updateLyricImmediate(lyric: String, app: String) {
+        // Force immediate update and restart scroll loop
+        lastUpdateTime = 0
+        updateNotification()
+        
+        // Restart runnable loop to ensure continuous scrolling
+        if (isRunning) {
+            mainHandler.removeCallbacks(simulationRunnable)
+            mainHandler.postDelayed(simulationRunnable, SIMULATION_STEP_DELAY)
+        }
+    }
+
     private fun updateNotification() {
+        // Throttling: 50ms limit (reduced from 200ms for faster response)
         val now = System.currentTimeMillis()
-        if (now - lastUpdateTime < 500) return
+        if (now - lastUpdateTime < 50) return 
         lastUpdateTime = now
 
         // Calculate display lyric FIRST (with scroll)
@@ -320,7 +333,7 @@ class LyricCapsuleHandler(
     companion object {
         private const val TAG = "LyricCapsule"
         private const val CHANNEL_ID = "lyric_capsule_channel"
-        private const val SIMULATION_STEP_DELAY = 400L
+        private const val SIMULATION_STEP_DELAY = 1800L  // Slower scroll: 1.8s per update (was 1s)
 
         // Colors for progress bar
         private const val COLOR_PRIMARY = 0xFF6750A4.toInt()   // Material Purple
