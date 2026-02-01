@@ -111,7 +111,6 @@
     <string name="settings_auto_update_desc">Check for new versions on app launch</string>
     <string name="settings_truncate_lyrics">Truncate Long Lyrics</string>
     <string name="settings_truncate_lyrics_desc">Split long lyrics into smaller pieces to prevent incomplete display</string>
-    <string name="settings_truncate_lyrics_desc_cn">是否截断歌词：防止歌词显示不全</string>
     
     <!-- Main Activity -->
     <string name="main_service_status">🔴 Service Status: Unknown</string>

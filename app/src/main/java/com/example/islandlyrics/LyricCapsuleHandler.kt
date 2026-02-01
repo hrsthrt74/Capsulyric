@@ -75,6 +75,7 @@ class LyricCapsuleHandler(
     
     // Lyric truncation feature
     private val MAX_PIECE_WEIGHT = 12  // Max weight per piece: 6 CJK or 10 Western chars
+    private val DEFAULT_LYRIC_DURATION_MS = 3000L  // Fallback duration when progress info unavailable
     private var lyricPieces = listOf<String>()  // Split pieces of current lyric
     private var currentPieceIndex = 0  // Which piece we're displaying
     private var pieceStartTime = 0L  // When current piece started displaying
@@ -361,6 +362,7 @@ class LyricCapsuleHandler(
             val weight = charWeight(char)
             
             // If adding this character would exceed the limit, start a new piece
+            // Exception: if current piece is empty, add the character anyway to avoid infinite loop
             if (currentWeight + weight > MAX_PIECE_WEIGHT && currentPiece.isNotEmpty()) {
                 pieces.add(currentPiece.toString())
                 currentPiece = StringBuilder()
@@ -427,7 +429,7 @@ class LyricCapsuleHandler(
                     // Calculate duration for first piece
                     // Get total duration from progress info
                     val progressInfo = LyricRepository.getInstance().liveProgress.value
-                    val totalDuration = progressInfo?.duration ?: 3000L
+                    val totalDuration = progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
                     val firstPieceWeight = calculateWeight(lyricPieces[0])
                     pieceDuration = calculatePieceDuration(firstPieceWeight, totalWeight, totalDuration)
                     
@@ -439,18 +441,19 @@ class LyricCapsuleHandler(
                 }
             }
             
-            // Handle piece rotation for long lyrics
-            if (lyricPieces.size > 1 && currentPieceIndex < lyricPieces.size) {
+            // Handle piece rotation for long lyrics (only if there are multiple pieces)
+            if (lyricPieces.size > 1) {
                 val elapsed = System.currentTimeMillis() - pieceStartTime
                 
                 // Check if it's time to move to next piece
+                // Note: We don't rotate from the last piece since it should display until lyric changes
                 if (elapsed >= pieceDuration && currentPieceIndex < lyricPieces.size - 1) {
                     currentPieceIndex++
                     pieceStartTime = System.currentTimeMillis()
                     
                     // Calculate duration for new piece
                     val progressInfo = LyricRepository.getInstance().liveProgress.value
-                    val totalDuration = progressInfo?.duration ?: 3000L
+                    val totalDuration = progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
                     val totalWeight = calculateWeight(currentLyric)
                     val pieceWeight = calculateWeight(lyricPieces[currentPieceIndex])
                     pieceDuration = calculatePieceDuration(pieceWeight, totalWeight, totalDuration)
