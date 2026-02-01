@@ -164,6 +164,14 @@ class LyricCapsuleHandler(
             mainHandler.postDelayed(simulationRunnable, adaptiveDelay)
         }
     }
+
+    // EXPOSED METHOD for LyricService to request a refresh/repost
+    fun forceUpdateNotification() {
+        // Reset last notified state to force a repost
+        lastNotifiedLyric = "" 
+        lastNotifiedProgress = -1
+        updateNotification()
+    }
     
     private fun recordLyricChange(newLyric: String) {
         val now = System.currentTimeMillis()

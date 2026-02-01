@@ -174,8 +174,11 @@ class MainActivity : BaseActivity() {
             // Check Playing Status
             val isPlaying = LyricRepository.getInstance().isPlaying.value
             if (java.lang.Boolean.TRUE == isPlaying) {
-                val source = LyricRepository.getInstance().sourceAppName.value
-                setCardState(true, "Active: " + (source ?: "Music"), R.color.status_active)
+                // Use liveLyric for source app name, or fallback to liveMetadata package if needed
+                val source = LyricRepository.getInstance().liveLyric.value?.sourceApp 
+                             ?: LyricRepository.getInstance().liveMetadata.value?.packageName 
+                             ?: "Music"
+                setCardState(true, "Active: $source", R.color.status_active)
             } else {
                 setCardState(true, "Service Ready (Idle)", R.color.status_active) // Or distinct color?
             }
@@ -261,7 +264,8 @@ class MainActivity : BaseActivity() {
         }
 
         // Lyric Observer
-        repo.currentLyric.observe(this) { lyric ->
+        repo.liveLyric.observe(this) { info ->
+            val lyric = info?.lyric
             if (lyric != null) {
                 tvLyric.text = lyric
             } else {

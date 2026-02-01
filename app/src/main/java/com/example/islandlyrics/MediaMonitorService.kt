@@ -24,6 +24,9 @@ class MediaMonitorService : NotificationListenerService() {
     
     // Explicitly use fully qualified names to avoid conflicts or ambiguity if imported
     private val activeControllers = java.util.ArrayList<MediaController>()
+    
+    // Deduplication: Track last metadata hash to avoid processing duplicates
+    private var lastMetadataHash: Int = 0
 
     private val sessionsChangedListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
         updateControllers(controllers)
@@ -32,6 +35,7 @@ class MediaMonitorService : NotificationListenerService() {
     private val handler = Handler(Looper.getMainLooper())
     private val stopRunnable = Runnable {
         AppLogger.getInstance().log(TAG, "Stopping service after debounce.")
+        LyricRepository.getInstance().updatePlaybackStatus(false) // Logic Fix: Move status update here
         val intent = Intent(this@MediaMonitorService, LyricService::class.java)
         intent.action = "ACTION_STOP"
         startService(intent)
@@ -116,12 +120,34 @@ class MediaMonitorService : NotificationListenerService() {
                 activeControllers.add(controller)
                 // Re-register callbacks to ensure we catch state changes
                 controller.registerCallback(object : MediaController.Callback() {
+                    // Debounce handler to prevent rapid/incomplete updates
+                    private val debounceHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                    private val updateRunnable = Runnable {
+                        // Double check state before updating
+                        if (controller.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                            updateMetadataIfPrimary(controller)
+                        } else {
+                            // If paused/stopped, update immediately to reflect state change
+                            updateMetadataIfPrimary(controller)
+                        }
+                    }
+
                     override fun onPlaybackStateChanged(state: PlaybackState?) {
+                        // CRITICAL FIX: Do NOT update repository here directly!
+                        // That bypasses the debounce logic in checkServiceState.
+                        // Just trigger the check.
+                        
+                        val isPlaying = state?.state == PlaybackState.STATE_PLAYING
+                        AppLogger.getInstance().log("Playback", "⏯️ State changed: ${if (isPlaying) "PLAYING" else "PAUSED/STOPPED"}")
+                        
                         checkServiceState()
                     }
 
                     override fun onMetadataChanged(metadata: MediaMetadata?) {
-                        updateMetadataIfPrimary(controller)
+                        // Add small delay (50ms) to allow notification to fully populate
+                        // This helps with apps that update state before metadata (race condition)
+                        debounceHandler.removeCallbacks(updateRunnable)
+                        debounceHandler.postDelayed(updateRunnable, 50)
                     }
                 })
             }
@@ -160,8 +186,8 @@ class MediaMonitorService : NotificationListenerService() {
             // Debounce Stop
             handler.removeCallbacks(stopRunnable)
             handler.postDelayed(stopRunnable, 500)
-
-            LyricRepository.getInstance().updatePlaybackStatus(false)
+            
+            // LOGIC FIX: Status update moved to stopRunnable to respect debounce
         }
     }
 
@@ -195,6 +221,15 @@ class MediaMonitorService : NotificationListenerService() {
     private fun extractMetadata(metadata: MediaMetadata, pkg: String) {
         val rawTitle = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
         val rawArtist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
+
+        // DEDUPLICATION: Skip if metadata is identical to last update
+        // Some apps (e.g., ink.trantor.coneplayer) send rapid duplicate metadata updates
+        val metadataHash = java.util.Objects.hash(rawTitle, rawArtist, pkg)
+        if (metadataHash == lastMetadataHash) {
+            AppLogger.getInstance().log("Meta-Debug", "⏭️ Skipping duplicate metadata for [$pkg]")
+            return
+        }
+        lastMetadataHash = metadataHash
 
         AppLogger.getInstance().log("Meta-Debug", "📦 RAW Data from [$pkg]:")
         AppLogger.getInstance().log("Meta-Debug", "   ↳ Title : $rawTitle")

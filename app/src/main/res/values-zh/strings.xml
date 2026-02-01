@@ -84,7 +84,7 @@
     <string name="parser_edit">编辑</string>
     <string name="parser_delete">删除</string>
     <string name="parser_package_name">包名</string>
-    <string name="parser_car_protocol">使用通知栏歌词</string>
+    <string name="parser_car_protocol">使用媒体通知（通知栏/车载音乐）歌词</string>
     <string name="parser_separator">分隔符</string>
     <string name="parser_field_order">字段顺序</string>
     <string name="parser_separator_tight">"-" (无空格)</string>
