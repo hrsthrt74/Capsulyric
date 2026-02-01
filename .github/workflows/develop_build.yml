@@ -29,25 +29,14 @@ jobs:
       - name: Build All Variants
         run: ./gradlew assembleDebug assembleRelease
 
-      - name: Sign Release APK
-        id: sign_release
-        uses: ilharp/sign-android-release@v1
-        with:
-          releaseDir: app/build/outputs/apk/release
-          buildToolsVersion: 34.0.0
-          signingKey: ${{ secrets.SIGNING_KEY }}
-          keyAlias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-
       - name: Upload Debug Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Capsulyric-Debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Signed Release Artifact
+      - name: Upload Unsigned Release Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Capsulyric-Release-Signed
+          name: Capsulyric-Release-Unsigned
           path: app/build/outputs/apk/release/*.apk
