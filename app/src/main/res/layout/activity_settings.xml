@@ -402,6 +402,42 @@
                 android:layout_height="wrap_content"/>
         </LinearLayout>
 
+        <!-- Item: Truncate Lyrics -->
+        <LinearLayout
+            android:id="@+id/item_truncate_lyrics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp"
+            android:background="?attr/selectableItemBackground">
+            
+            <LinearLayout
+                 android:layout_width="0dp"
+                 android:layout_height="wrap_content"
+                 android:layout_weight="1"
+                 android:orientation="vertical">
+                 <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_truncate_lyrics"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"/>
+                 <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_truncate_lyrics_desc"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_truncate_lyrics"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
         <!-- Item: Battery -->
 
         <LinearLayout

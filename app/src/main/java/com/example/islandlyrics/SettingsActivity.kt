@@ -62,6 +62,10 @@ class SettingsActivity : BaseActivity() {
     private lateinit var itemDynamicColor: View
     private lateinit var switchDynamicColor: MaterialSwitch
 
+    // Lyric Settings UI References
+    private lateinit var itemTruncateLyrics: View
+    private lateinit var switchTruncateLyrics: MaterialSwitch
+
     // Developer Mode State
     private var devClickCount = 0
     private var lastDevClickTime = 0L
@@ -100,6 +104,9 @@ class SettingsActivity : BaseActivity() {
         switchPureBlack = findViewById(R.id.switch_theme_pure_black)
         itemDynamicColor = findViewById(R.id.item_theme_dynamic_color)
         switchDynamicColor = findViewById(R.id.switch_theme_dynamic_color)
+
+        itemTruncateLyrics = findViewById(R.id.item_truncate_lyrics)
+        switchTruncateLyrics = findViewById(R.id.switch_truncate_lyrics)
 
         itemBattery = findViewById(R.id.item_battery)
         itemGithub = findViewById(R.id.item_github)
@@ -155,6 +162,10 @@ class SettingsActivity : BaseActivity() {
 
         val dynamicColor = prefs.getBoolean("theme_dynamic_color", true)
         switchDynamicColor.isChecked = dynamicColor
+        
+        // Lyric Settings
+        val truncateLyrics = prefs.getBoolean("truncate_lyrics_enabled", false)
+        switchTruncateLyrics.isChecked = truncateLyrics
     }
 
     override fun onResume() {
@@ -275,6 +286,16 @@ class SettingsActivity : BaseActivity() {
         switchAutoUpdate.setOnCheckedChangeListener { _, isChecked ->
             UpdateChecker.setAutoUpdateEnabled(this, isChecked)
             AppLogger.getInstance().log("Settings", "Auto-update: $isChecked")
+        }
+
+        // Truncate Lyrics Switch
+        itemTruncateLyrics.setOnClickListener { switchTruncateLyrics.toggle() }
+        switchTruncateLyrics.setOnCheckedChangeListener { buttonView, isChecked ->
+            if (buttonView.isPressed || itemTruncateLyrics.isPressed) {
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit().putBoolean("truncate_lyrics_enabled", isChecked).apply()
+                AppLogger.getInstance().log("Settings", "Truncate lyrics: $isChecked")
+            }
         }
 
         // About
