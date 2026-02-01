@@ -76,6 +76,8 @@ class LyricCapsuleHandler(
     // Lyric truncation feature
     private val MAX_PIECE_WEIGHT = 12  // Max weight per piece: 6 CJK or 10 Western chars
     private val DEFAULT_LYRIC_DURATION_MS = 3000L  // Fallback duration when progress info unavailable
+    private val MIN_PIECE_DURATION_MS = 1000L  // Minimum display time per piece for readability
+    private val PREFS_NAME = "IslandLyricsPrefs"  // SharedPreferences file name
     private var lyricPieces = listOf<String>()  // Split pieces of current lyric
     private var currentPieceIndex = 0  // Which piece we're displaying
     private var pieceStartTime = 0L  // When current piece started displaying
@@ -385,8 +387,16 @@ class LyricCapsuleHandler(
      * Check if truncation is enabled in settings
      */
     private fun isTruncationEnabled(): Boolean {
-        val prefs = context.getSharedPreferences("IslandLyricsPrefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getBoolean("truncate_lyrics_enabled", false)
+    }
+    
+    /**
+     * Get the total lyric duration from progress info, or use default
+     */
+    private fun getTotalLyricDuration(): Long {
+        val progressInfo = LyricRepository.getInstance().liveProgress.value
+        return progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
     }
 
     /**
@@ -396,7 +406,7 @@ class LyricCapsuleHandler(
         if (totalWeight == 0) return totalDuration
         // Distribute time proportionally based on weight
         val ratio = pieceWeight.toFloat() / totalWeight.toFloat()
-        return (totalDuration * ratio).toLong().coerceAtLeast(1000L) // At least 1 second per piece
+        return (totalDuration * ratio).toLong().coerceAtLeast(MIN_PIECE_DURATION_MS)
     }
 
     private fun updateNotification() {
@@ -427,9 +437,7 @@ class LyricCapsuleHandler(
                     pieceStartTime = System.currentTimeMillis()
                     
                     // Calculate duration for first piece
-                    // Get total duration from progress info
-                    val progressInfo = LyricRepository.getInstance().liveProgress.value
-                    val totalDuration = progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
+                    val totalDuration = getTotalLyricDuration()
                     val firstPieceWeight = calculateWeight(lyricPieces[0])
                     pieceDuration = calculatePieceDuration(firstPieceWeight, totalWeight, totalDuration)
                     
@@ -452,8 +460,7 @@ class LyricCapsuleHandler(
                     pieceStartTime = System.currentTimeMillis()
                     
                     // Calculate duration for new piece
-                    val progressInfo = LyricRepository.getInstance().liveProgress.value
-                    val totalDuration = progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
+                    val totalDuration = getTotalLyricDuration()
                     val totalWeight = calculateWeight(currentLyric)
                     val pieceWeight = calculateWeight(lyricPieces[currentPieceIndex])
                     pieceDuration = calculatePieceDuration(pieceWeight, totalWeight, totalDuration)
