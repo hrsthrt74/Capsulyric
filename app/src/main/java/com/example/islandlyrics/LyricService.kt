@@ -45,27 +45,50 @@ class LyricService : Service() {
                 // Capsule running: Force immediate update
                 capsuleHandler?.updateLyricImmediate(info.lyric, info.sourceApp)
             }
-            // Always update notification with new lyric (Legacy/Fallback)
-            updateNotification(info.lyric, info.sourceApp, "")
+        }
+        // CRITICAL FIX: Removed else branch that called capsuleHandler?.stop()
+        // Capsule now stays visible even if lyric becomes null/blank
+        // Lifecycle is controlled by playback state, not lyric availability
+    }
+    
+    // NEW: Playback state observer - controls capsule lifecycle
+    private val playbackObserver = Observer<Boolean> { playing ->
+        if (playing) {
+            // Resume/Start capsule if we have valid lyrics
+            val currentLyric = LyricRepository.getInstance().liveLyric.value
+            if (currentLyric != null && currentLyric.lyric.isNotBlank() && capsuleHandler?.isRunning() != true) {
+                capsuleHandler?.start()
+                
+                // START PROGRESS TRACKING
+                isPlaying = true
+                handler.post(updateTask)
+                
+                // Force immediate update with current lyric
+                capsuleHandler?.updateLyricImmediate(currentLyric.lyric, currentLyric.sourceApp)
+                AppLogger.getInstance().log(TAG, "▶️ Capsule started: Playback resumed")
+            }
         } else {
-            // Stop Capsule when lyrics are unavailable
+            // Stop capsule ONLY when playback actually stops
             if (capsuleHandler?.isRunning() == true) {
                 capsuleHandler?.stop()
                 
                 // STOP PROGRESS TRACKING
                 isPlaying = false
                 handler.removeCallbacks(updateTask)
+                
+                AppLogger.getInstance().log(TAG, "🛑 Capsule stopped: Playback stopped")
             }
         }
     }
 
     private val superLyricStub = object : ISuperLyric.Stub() {
         override fun onStop(data: SuperLyricData?) {
-            Log.d(TAG, "onStop: ${data ?: "null"}")
+            Log.d(TAG, "API onStop: ${data?.packageName}")
             LyricRepository.getInstance().updatePlaybackStatus(false)
-            // Stop Capsule when playback stops
-            capsuleHandler?.stop()
-            updateNotification("Playback Stopped", "Island Lyrics", "")
+            
+            // CRITICAL FIX: Don't stop capsule here - let playback state observer control lifecycle
+            // capsuleHandler?.stop()  ← REMOVED
+            // This prevents capsule from disappearing mid-playback when API sends stop events
         }
 
         override fun onSuperLyric(data: SuperLyricData?) {
@@ -133,6 +156,7 @@ class LyricService : Service() {
         // Observe Repository
         val repo = LyricRepository.getInstance()
         repo.liveLyric.observeForever(lyricObserver)
+        repo.isPlaying.observeForever(playbackObserver)  // ← NEW: Control capsule lifecycle
 
         repo.isPlaying.observeForever { isPlaying ->
             if (java.lang.Boolean.TRUE == isPlaying) {
@@ -157,7 +181,19 @@ class LyricService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // [Fix Task 1] Immediate Foreground Promotion
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Initializing...", "Island Lyrics", ""))
+        
+        // CRITICAL FIX: Prioritize the Rich Capsule Notification if it's already active
+        if (capsuleHandler != null && capsuleHandler!!.isRunning()) {
+            // Ask the handler to repost its rich notification
+            // This satisfies startForeground requirements without downgrading the UI
+            capsuleHandler!!.forceUpdateNotification()
+        } else {
+            // Fallback: Use basic notification logic (improved to show real lyrics if available)
+            val currentInfo = LyricRepository.getInstance().liveLyric.value
+            val title = currentInfo?.sourceApp ?: "Island Lyrics"
+            val text = currentInfo?.lyric ?: "Initializing..."
+            startForeground(NOTIFICATION_ID, buildNotification(text, title, ""))
+        }
 
         val action = intent?.action ?: "null"
         AppLogger.getInstance().log(TAG, "Received Action: $action")

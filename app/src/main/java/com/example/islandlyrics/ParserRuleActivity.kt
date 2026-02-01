@@ -225,7 +225,7 @@ class ParserRuleAdapter(
             FieldOrder.ARTIST_TITLE -> context.getString(R.string.parser_order_artist_title)
             FieldOrder.TITLE_ARTIST -> context.getString(R.string.parser_order_title_artist)
         }
-        val protocol = if (rule.usesCarProtocol) "✓ Car Protocol" else "✗ Car Protocol"
+        val protocol = if (rule.usesCarProtocol) "✓ Media Notification Lyrics" else "✗ Media Notification Lyrics"
         return "$separator | $order | $protocol"
     }
 

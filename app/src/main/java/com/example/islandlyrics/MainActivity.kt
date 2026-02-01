@@ -97,7 +97,6 @@ class MainActivity : BaseActivity() {
             insets
         }
 
-        initializeDefaultWhitelist()
         bindViews()
         setupClickListeners()
         setupObservers()
@@ -112,14 +111,6 @@ class MainActivity : BaseActivity() {
             if (checkSelfPermission("android.permission.POST_PROMOTED_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf("android.permission.POST_PROMOTED_NOTIFICATIONS"), 102)
             }
-        }
-    }
-
-    private fun initializeDefaultWhitelist() {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        if (!prefs.contains(PREF_WHITELIST)) {
-            val set = HashSet(Arrays.asList(*DEFAULT_WHITELIST))
-            prefs.edit().putStringSet(PREF_WHITELIST, set).apply()
         }
     }
 
@@ -183,8 +174,11 @@ class MainActivity : BaseActivity() {
             // Check Playing Status
             val isPlaying = LyricRepository.getInstance().isPlaying.value
             if (java.lang.Boolean.TRUE == isPlaying) {
-                val source = LyricRepository.getInstance().sourceAppName.value
-                setCardState(true, "Active: " + (source ?: "Music"), R.color.status_active)
+                // Use liveLyric for source app name, or fallback to liveMetadata package if needed
+                val source = LyricRepository.getInstance().liveLyric.value?.sourceApp 
+                             ?: LyricRepository.getInstance().liveMetadata.value?.packageName 
+                             ?: "Music"
+                setCardState(true, "Active: $source", R.color.status_active)
             } else {
                 setCardState(true, "Service Ready (Idle)", R.color.status_active) // Or distinct color?
             }
@@ -270,7 +264,8 @@ class MainActivity : BaseActivity() {
         }
 
         // Lyric Observer
-        repo.currentLyric.observe(this) { lyric ->
+        repo.liveLyric.observe(this) { info ->
+            val lyric = info?.lyric
             if (lyric != null) {
                 tvLyric.text = lyric
             } else {
@@ -327,17 +322,5 @@ class MainActivity : BaseActivity() {
     companion object {
         private const val TAG = "IslandLyrics"
         private const val PREFS_NAME = "IslandLyricsPrefs"
-        private const val PREF_WHITELIST = "whitelist_packages"
-
-        // Default Whitelist
-        private val DEFAULT_WHITELIST = arrayOf(
-            "com.netease.cloudmusic",
-            "com.tencent.qqmusic",
-            "com.kugou.android",
-            "com.spotify.music",
-            "com.apple.android.music",
-            "com.google.android.youtube",
-            "com.google.android.apps.youtube.music"
-        )
     }
 }

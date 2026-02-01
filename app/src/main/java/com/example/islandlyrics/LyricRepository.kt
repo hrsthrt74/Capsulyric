@@ -7,13 +7,10 @@ import androidx.lifecycle.MutableLiveData
  */
 class LyricRepository private constructor() {
 
+    // Playback state
     val isPlaying = MutableLiveData(false)
-    val currentLyric = MutableLiveData("Thinking...")
-    val sourceAppName = MutableLiveData("No Source")
-    val songTitle = MutableLiveData("Unknown Title")
-    val artistName = MutableLiveData("Unknown Artist")
 
-    // New Atomic Metadata Container
+    // Atomic Metadata Container
     data class MediaInfo(
         val title: String,
         val artist: String,
@@ -21,7 +18,7 @@ class LyricRepository private constructor() {
         val duration: Long
     )
 
-    // New Atomic Lyric Container
+    // Atomic Lyric Container
     data class LyricInfo(
         val lyric: String,
         val sourceApp: String
@@ -33,6 +30,7 @@ class LyricRepository private constructor() {
         val duration: Long   // in milliseconds
     )
 
+    // Modern atomic LiveData (single source of truth)
     val liveMetadata = MutableLiveData<MediaInfo?>()
     val liveLyric = MutableLiveData<LyricInfo?>()
     val liveProgress = MutableLiveData<PlaybackProgress?>()
@@ -48,35 +46,19 @@ class LyricRepository private constructor() {
     }
 
     fun updateLyric(lyric: String?, app: String?) {
-        if (lyric != null) currentLyric.postValue(lyric)
-        if (app != null) sourceAppName.postValue(app)
-
-        // Atomic Update
+        // Atomic Update: Only post if both lyric and app are non-null
         if (lyric != null && app != null) {
             liveLyric.postValue(LyricInfo(lyric, app))
         }
 
-        // This method NO LONGER updates title/artist to prevent overwriting metadata from MediaMonitor
-
-        // Implicitly playing if we get data
+        // Implicitly playing if we get lyric data
         updatePlaybackStatus(true)
     }
 
     fun updateMediaMetadata(title: String, artist: String, packageName: String, duration: Long) {
-        // Detect song change
-        val trackId = "$title|$artist"
-        val isSongChange = lastTrackId != null && lastTrackId != trackId
-        
-        if (isSongChange) {
-            AppLogger.getInstance().log("Repo", "🔄 Song changed! Clearing old lyric and progress")
-            // Clear old lyric and progress immediately
-            liveLyric.postValue(null)
-            liveProgress.postValue(null)
-        }
-        
-        lastTrackId = trackId
-        AppLogger.getInstance().log("Repo", "Posting metadata for: $packageName")
-        // Atomic update
+        // Simple atomic update - no song change detection, no lyric clearing
+        // Capsule lifecycle is now controlled by playback state, not metadata changes
+        AppLogger.getInstance().log("Repo", "📝 Metadata: $title - $artist [$packageName]")
         liveMetadata.postValue(MediaInfo(title, artist, packageName, duration))
     }
 
