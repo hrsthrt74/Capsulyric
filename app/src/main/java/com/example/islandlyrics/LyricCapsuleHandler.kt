@@ -72,6 +72,17 @@ class LyricCapsuleHandler(
     private val MIN_CHAR_DURATION = 50L
     private val MIN_SCROLL_DELAY = 500L
     private val MAX_SCROLL_DELAY = 5000L
+    
+    // Lyric truncation feature
+    private val MAX_PIECE_WEIGHT = 12  // Max weight per piece: 6 CJK or 10 Western chars
+    private val DEFAULT_LYRIC_DURATION_MS = 3000L  // Fallback duration when progress info unavailable
+    private val MIN_PIECE_DURATION_MS = 1000L  // Minimum display time per piece for readability
+    private val PREFS_NAME = "IslandLyricsPrefs"  // SharedPreferences file name
+    private var lyricPieces = listOf<String>()  // Split pieces of current lyric
+    private var currentPieceIndex = 0  // Which piece we're displaying
+    private var pieceStartTime = 0L  // When current piece started displaying
+    private var pieceDuration = 0L  // How long to show current piece
+    private var originalLyricForTruncation = ""  // Original lyric before splitting
 
     private val simulationRunnable = object : Runnable {
         override fun run() {
@@ -335,82 +346,202 @@ class LyricCapsuleHandler(
         }
     }
 
+    /**
+     * Split a lyric into pieces where each piece has a maximum weight of MAX_PIECE_WEIGHT (12 units).
+     * This means each piece can contain:
+     * - Up to 6 Chinese characters (6 * 2 = 12 units)
+     * - Up to 10 alphabet characters (10 * 1.2 = 12 units)
+     * - Or a mix of Chinese and English not exceeding 12 units
+     */
+    private fun splitLyricIntoPieces(lyric: String): List<String> {
+        if (lyric.isEmpty()) return listOf("")
+        
+        val pieces = mutableListOf<String>()
+        var currentPiece = StringBuilder()
+        var currentWeight = 0
+        
+        for (char in lyric) {
+            val weight = charWeight(char)
+            
+            // If adding this character would exceed the limit, start a new piece
+            // Exception: if current piece is empty, add the character anyway to avoid infinite loop
+            if (currentWeight + weight > MAX_PIECE_WEIGHT && currentPiece.isNotEmpty()) {
+                pieces.add(currentPiece.toString())
+                currentPiece = StringBuilder()
+                currentWeight = 0
+            }
+            
+            currentPiece.append(char)
+            currentWeight += weight
+        }
+        
+        // Add the last piece if not empty
+        if (currentPiece.isNotEmpty()) {
+            pieces.add(currentPiece.toString())
+        }
+        
+        return pieces.ifEmpty { listOf("") }
+    }
+
+    /**
+     * Check if truncation is enabled in settings
+     */
+    private fun isTruncationEnabled(): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean("truncate_lyrics_enabled", false)
+    }
+    
+    /**
+     * Get the total lyric duration from progress info, or use default
+     */
+    private fun getTotalLyricDuration(): Long {
+        val progressInfo = LyricRepository.getInstance().liveProgress.value
+        return progressInfo?.duration ?: DEFAULT_LYRIC_DURATION_MS
+    }
+
+    /**
+     * Calculate display duration for a piece based on its weight relative to total lyric weight
+     */
+    private fun calculatePieceDuration(pieceWeight: Int, totalWeight: Int, totalDuration: Long): Long {
+        if (totalWeight == 0) return totalDuration
+        // Distribute time proportionally based on weight
+        val ratio = pieceWeight.toFloat() / totalWeight.toFloat()
+        return (totalDuration * ratio).toLong().coerceAtLeast(MIN_PIECE_DURATION_MS)
+    }
+
     private fun updateNotification() {
         // Throttling: 50ms limit (reduced from 200ms for faster response)
         val now = System.currentTimeMillis()
         if (now - lastUpdateTime < 50) return 
         lastUpdateTime = now
 
-        // Calculate display lyric FIRST (with scroll)
+        // Calculate display lyric FIRST (with scroll or truncation)
         val lyricInfo = LyricRepository.getInstance().liveLyric.value
         val currentLyric = lyricInfo?.lyric ?: ""
         
-        // Scrolling Marquee Logic with Visual Weight & Compensation Algorithm
         var displayLyric: String
-        val totalWeight = calculateWeight(currentLyric)
         
-        // Reset scroll offset if lyric changed
-        if (currentLyric != lastLyricText) {
-            lastLyricText = currentLyric
-            scrollOffset = 0
-            scrollState = ScrollState.INITIAL_PAUSE
-            initialPauseStartTime = System.currentTimeMillis()
-        }
-        
-        // Short lyric: no scrolling needed
-        if (totalWeight <= MAX_DISPLAY_WEIGHT) {
-            displayLyric = currentLyric
+        // Check if truncation is enabled
+        if (isTruncationEnabled()) {
+            // TRUNCATION MODE: Split long lyrics into pieces
+            val totalWeight = calculateWeight(currentLyric)
+            
+            // Reset pieces if lyric changed
+            if (currentLyric != originalLyricForTruncation) {
+                originalLyricForTruncation = currentLyric
+                
+                // Only split if lyric is longer than MAX_PIECE_WEIGHT
+                if (totalWeight > MAX_PIECE_WEIGHT) {
+                    lyricPieces = splitLyricIntoPieces(currentLyric)
+                    currentPieceIndex = 0
+                    pieceStartTime = System.currentTimeMillis()
+                    
+                    // Calculate duration for first piece
+                    val totalDuration = getTotalLyricDuration()
+                    val firstPieceWeight = calculateWeight(lyricPieces[0])
+                    pieceDuration = calculatePieceDuration(firstPieceWeight, totalWeight, totalDuration)
+                    
+                    LogManager.getInstance().d(context, TAG, "Split lyric into ${lyricPieces.size} pieces")
+                } else {
+                    // Lyric is short enough, no splitting needed
+                    lyricPieces = listOf(currentLyric)
+                    currentPieceIndex = 0
+                }
+            }
+            
+            // Handle piece rotation for long lyrics (only if there are multiple pieces)
+            if (lyricPieces.size > 1) {
+                val elapsed = System.currentTimeMillis() - pieceStartTime
+                
+                // Check if it's time to move to next piece
+                // Note: We don't rotate from the last piece since it should display until lyric changes
+                if (elapsed >= pieceDuration && currentPieceIndex < lyricPieces.size - 1) {
+                    currentPieceIndex++
+                    pieceStartTime = System.currentTimeMillis()
+                    
+                    // Calculate duration for new piece
+                    val totalDuration = getTotalLyricDuration()
+                    val totalWeight = calculateWeight(currentLyric)
+                    val pieceWeight = calculateWeight(lyricPieces[currentPieceIndex])
+                    pieceDuration = calculatePieceDuration(pieceWeight, totalWeight, totalDuration)
+                    
+                    LogManager.getInstance().d(context, TAG, "Switched to piece ${currentPieceIndex + 1}/${lyricPieces.size}")
+                }
+            }
+            
+            // Display current piece
+            displayLyric = if (lyricPieces.isNotEmpty() && currentPieceIndex < lyricPieces.size) {
+                lyricPieces[currentPieceIndex]
+            } else {
+                currentLyric
+            }
         } else {
-            // State machine for scroll timing
-            when (scrollState) {
-                ScrollState.INITIAL_PAUSE -> {
-                    val pauseElapsed = System.currentTimeMillis() - initialPauseStartTime
-                    if (pauseElapsed >= INITIAL_PAUSE_DURATION) {
-                        scrollState = ScrollState.SCROLLING
+            // ORIGINAL SCROLLING MODE: Use existing weight-based scrolling
+            val totalWeight = calculateWeight(currentLyric)
+            
+            // Reset scroll offset if lyric changed
+            if (currentLyric != lastLyricText) {
+                lastLyricText = currentLyric
+                scrollOffset = 0
+                scrollState = ScrollState.INITIAL_PAUSE
+                initialPauseStartTime = System.currentTimeMillis()
+            }
+            
+            // Short lyric: no scrolling needed
+            if (totalWeight <= MAX_DISPLAY_WEIGHT) {
+                displayLyric = currentLyric
+            } else {
+                // State machine for scroll timing
+                when (scrollState) {
+                    ScrollState.INITIAL_PAUSE -> {
+                        val pauseElapsed = System.currentTimeMillis() - initialPauseStartTime
+                        if (pauseElapsed >= INITIAL_PAUSE_DURATION) {
+                            scrollState = ScrollState.SCROLLING
+                        }
+                        // Show beginning of lyric
+                        displayLyric = extractByWeight(currentLyric, 0, MAX_DISPLAY_WEIGHT)
                     }
-                    // Show beginning of lyric
-                    displayLyric = extractByWeight(currentLyric, 0, MAX_DISPLAY_WEIGHT)
-                }
-                
-                ScrollState.SCROLLING -> {
-                    // Calculate remaining content
-                    val remainingWeight = totalWeight - scrollOffset
                     
-                    // COMPENSATION ALGORITHM: Stop scrolling if remainder is small to keep capsule stable
-                    if (remainingWeight <= COMPENSATION_THRESHOLD) {
-                        // Show all remaining content (even if > MAX_DISPLAY_WEIGHT)
-                        scrollState = ScrollState.FINAL_PAUSE
-                        initialPauseStartTime = System.currentTimeMillis()
-                        displayLyric = extractByWeight(currentLyric, scrollOffset, remainingWeight)
-                    } else if (remainingWeight <= MAX_DISPLAY_WEIGHT) {
-                        // Last full segment: switch to FINAL_PAUSE
-                        scrollState = ScrollState.FINAL_PAUSE
-                        initialPauseStartTime = System.currentTimeMillis()
-                        displayLyric = extractByWeight(currentLyric, scrollOffset, MAX_DISPLAY_WEIGHT)
-                    } else {
-                        // Active scrolling
-                        displayLyric = extractByWeight(currentLyric, scrollOffset, MAX_DISPLAY_WEIGHT)
+                    ScrollState.SCROLLING -> {
+                        // Calculate remaining content
+                        val remainingWeight = totalWeight - scrollOffset
                         
-                        // Increment scroll offset by smart step (2-3 CJK or 3-4 Western)
-                        scrollOffset += calculateSmartShiftWeight(currentLyric, scrollOffset)
+                        // COMPENSATION ALGORITHM: Stop scrolling if remainder is small to keep capsule stable
+                        if (remainingWeight <= COMPENSATION_THRESHOLD) {
+                            // Show all remaining content (even if > MAX_DISPLAY_WEIGHT)
+                            scrollState = ScrollState.FINAL_PAUSE
+                            initialPauseStartTime = System.currentTimeMillis()
+                            displayLyric = extractByWeight(currentLyric, scrollOffset, remainingWeight)
+                        } else if (remainingWeight <= MAX_DISPLAY_WEIGHT) {
+                            // Last full segment: switch to FINAL_PAUSE
+                            scrollState = ScrollState.FINAL_PAUSE
+                            initialPauseStartTime = System.currentTimeMillis()
+                            displayLyric = extractByWeight(currentLyric, scrollOffset, MAX_DISPLAY_WEIGHT)
+                        } else {
+                            // Active scrolling
+                            displayLyric = extractByWeight(currentLyric, scrollOffset, MAX_DISPLAY_WEIGHT)
+                            
+                            // Increment scroll offset by smart step (2-3 CJK or 3-4 Western)
+                            scrollOffset += calculateSmartShiftWeight(currentLyric, scrollOffset)
+                        }
                     }
-                }
-                
-                ScrollState.FINAL_PAUSE -> {
-                    // Show final segment (may be > MAX_DISPLAY_WEIGHT due to compensation)
-                    val remainingWeight = totalWeight - scrollOffset
-                    displayLyric = extractByWeight(currentLyric, scrollOffset, maxOf(remainingWeight, MAX_DISPLAY_WEIGHT))
                     
-                    val pauseElapsed = System.currentTimeMillis() - initialPauseStartTime
-                    if (pauseElapsed >= FINAL_PAUSE_DURATION) {
-                        scrollState = ScrollState.DONE
+                    ScrollState.FINAL_PAUSE -> {
+                        // Show final segment (may be > MAX_DISPLAY_WEIGHT due to compensation)
+                        val remainingWeight = totalWeight - scrollOffset
+                        displayLyric = extractByWeight(currentLyric, scrollOffset, maxOf(remainingWeight, MAX_DISPLAY_WEIGHT))
+                        
+                        val pauseElapsed = System.currentTimeMillis() - initialPauseStartTime
+                        if (pauseElapsed >= FINAL_PAUSE_DURATION) {
+                            scrollState = ScrollState.DONE
+                        }
                     }
-                }
-                
-                ScrollState.DONE -> {
-                    // Keep showing final segment
-                    val remainingWeight = totalWeight - scrollOffset
-                    displayLyric = extractByWeight(currentLyric, scrollOffset, maxOf(remainingWeight, MAX_DISPLAY_WEIGHT))
+                    
+                    ScrollState.DONE -> {
+                        // Keep showing final segment
+                        val remainingWeight = totalWeight - scrollOffset
+                        displayLyric = extractByWeight(currentLyric, scrollOffset, maxOf(remainingWeight, MAX_DISPLAY_WEIGHT))
+                    }
                 }
             }
         }
