@@ -1,5 +1,11 @@
 # Capsulyric 🏝️
 
+[![Latest Release](https://img.shields.io/github/v/release/FrancoGiudans/Capsulyric?include_prereleases&style=flat-square&label=Latest&color=orange)](https://github.com/FrancoGiudans/Capsulyric/releases/latest)
+
+[![Commit Hash](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/FrancoGiudans/Capsulyric/commits/main&query=$.sha&slice=0:7&label=Commit&style=flat-square&color=gray)](https://github.com/FrancoGiudans/Capsulyric/commits/main)
+
+[![License](https://img.shields.io/github/license/FrancoGiudans/Capsulyric?style=flat-square&color=blue)](LICENSE)
+
 > **Provides status bar lyrics based on Live Update.**
 > **提供基于 Live Update 机制的状态栏歌词。**
 
@@ -24,8 +30,8 @@
 ### 🛡️ Mode 2: 0-Hook (No Root)
 **Supported Apps (默认支持列表)**:
 
-| App | Package Name | Setup (设置) |
-| :--- | :--- | :--- |
+| App | Package Name |
+| :--- | :--- |
 | **QQ Music**<br>(QQ音乐) | `com.tencent.qqmusic` |
 | **NetEase Music**<br>(网易云音乐) | `com.netease.cloudmusic` | 
 | **Xiaomi Music**<br>(小米音乐) | `com.miui.player` | 
@@ -55,6 +61,14 @@ cd IslandLyrics
 ```
 
 ---
+
+## 📜 开源协议 / License
+
+本项目基于 [GPL-3.0](LICENSE) 协议开源。
+
+这意味着你可以自由地使用、修改和分发本项目的代码，但**如果你分发了修改后的版本，你也必须使用 GPL-3.0 协议开源**。
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## 🤝 Credits (致谢)
 
